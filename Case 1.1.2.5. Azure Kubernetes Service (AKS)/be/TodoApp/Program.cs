@@ -17,17 +17,17 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", builder =>
+    options.AddDefaultPolicy(policy =>
     {
-        builder.WithOrigins("http://localhost:4200")
-               .AllowAnyHeader()
-               .AllowAnyMethod();
+        policy
+            .WithOrigins("http://my-jenkins-mv.westus.cloudapp.azure.com")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
-
 var app = builder.Build();
 
-app.UseCors("AllowAngular");
+app.UseCors();
 
 app.UseSwagger();
 app.UseSwaggerUI();

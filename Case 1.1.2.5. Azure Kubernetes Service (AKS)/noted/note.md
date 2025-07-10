@@ -17,4 +17,12 @@ dotnet --version
 
 # kill angular
 sudo lsof -i :4200
-ng serve --serve-path /web
+ng serve --port=4202 --serve-path /development/web/
+# fe
+<!-- docker build -t angular-todo-app . -->
+docker build --build-arg CONFIG=production -t angular-todo-app .
+docker run -d -p 4200:80 --name angular-todo angular-todo-app
+
+# docker compose
+ docker compose up -d
+ docker compose down
