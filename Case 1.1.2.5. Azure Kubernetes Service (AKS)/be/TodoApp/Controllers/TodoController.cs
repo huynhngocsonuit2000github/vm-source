@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TodoApi.Models;
 using TodoApi.Repositories;
+using TodoApi.Data;
 
 namespace TodoApi.Controllers;
 
@@ -8,45 +9,45 @@ namespace TodoApi.Controllers;
 [Route("todos")]
 public class TodoController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult GetAll()
+    private readonly AppDbContext _db;
+
+    public TodoController(AppDbContext db)
     {
-        return Ok(TodoRepository.Todos);
+        _db = db;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<TodoItem>>> Get()
+    {
+        var items = await TodoRepository.GetAllAsync(_db);
+        return Ok(items);
     }
 
     [HttpGet("{id}")]
-    public IActionResult GetById(int id)
+    public async Task<ActionResult<TodoItem>> Get(int id)
     {
-        var todo = TodoRepository.Todos.FirstOrDefault(t => t.Id == id);
-        return todo is null ? NotFound() : Ok(todo);
+        var item = await TodoRepository.GetByIdAsync(_db, id);
+        return item == null ? NotFound() : Ok(item);
     }
 
     [HttpPost]
-    public IActionResult Create([FromBody] TodoItem todo)
+    public async Task<ActionResult<TodoItem>> Post(TodoItem item)
     {
-        todo.Id = TodoRepository.NextId++;
-        TodoRepository.Todos.Add(todo);
-        return CreatedAtAction(nameof(GetById), new { id = todo.Id }, todo);
+        var created = await TodoRepository.AddAsync(_db, item);
+        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
-    public IActionResult Update(int id, [FromBody] TodoItem updated)
+    public async Task<IActionResult> Put(int id, TodoItem item)
     {
-        var todo = TodoRepository.Todos.FirstOrDefault(t => t.Id == id);
-        if (todo is null) return NotFound();
-
-        todo.Title = updated.Title;
-        todo.IsCompleted = updated.IsCompleted;
-        return Ok(todo);
+        var updated = await TodoRepository.UpdateAsync(_db, id, item);
+        return updated == null ? NotFound() : NoContent();
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var todo = TodoRepository.Todos.FirstOrDefault(t => t.Id == id);
-        if (todo is null) return NotFound();
-
-        TodoRepository.Todos.Remove(todo);
-        return NoContent();
+        var deleted = await TodoRepository.DeleteAsync(_db, id);
+        return deleted ? NoContent() : NotFound();
     }
 }
