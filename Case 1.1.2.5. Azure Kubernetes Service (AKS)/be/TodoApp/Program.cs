@@ -20,7 +20,10 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
     {
         policy
-            .WithOrigins("http://my-jenkins-mv.westus.cloudapp.azure.com")
+            .WithOrigins(
+                "http://my-jenkins-mv.westus.cloudapp.azure.com",
+                "http://52.225.95.44:30036"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
