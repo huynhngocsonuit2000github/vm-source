@@ -1,24 +1,38 @@
 pipeline {
     agent any
 
-    environment {
-        IMAGE_NAME = 'huynhngocsonuit2000docker/azure-image:todo-app'
-        // SERVER_IP = 'my-vm-dns.southafricanorth.cloudapp.azure.com'
-        // SERVER_USER = 'useradmin'
+  environment {
+        // These are constant defaults if needed
+        BASE_IMAGE_NAME_API = 'huynhngocsonuit2000docker/azure-image:todo-app-be'
+        BASE_IMAGE_NAME_FE  = 'huynhngocsonuit2000docker/azure-image:todo-app-fe'
     }
 
     stages {
+        stage('Set Image Tags') {
+            steps {
+                script {
+                    def now = new Date().format("yyyyMMdd-HHmm", TimeZone.getTimeZone("Asia/Ho_Chi_Minh"))
+                    env.IMAGE_NAME_API = "${env.BASE_IMAGE_NAME_API}-${now}"
+                    env.IMAGE_NAME_FE  = "${env.BASE_IMAGE_NAME_FE}-${now}"
+                }
+            }
+        }
+
         stage('Clone Code') {
             steps {
                 git url: 'https://github.com/huynhngocsonuit2000github/vm-source', branch: 'main'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Image API') {
             steps {
-                sh 'pwd'
-                sh 'ls -la "./Case 1.1.2.5. Azure Kubernetes Service (AKS)/be/TodoApp"'
-                sh 'cd "./Case 1.1.2.5. Azure Kubernetes Service (AKS)/be/TodoApp" && docker build -t $IMAGE_NAME .'
+                sh 'cd "./Case 1.1.2.5. Azure Kubernetes Service (AKS)/be/TodoApp" && docker build -t $IMAGE_NAME_API .'
+            }
+        }
+
+        stage('Build Docker Image FE') {
+            steps {
+                sh 'cd "./Case 1.1.2.5. Azure Kubernetes Service (AKS)/fe/angular-todo" && docker build --build-arg CONFIG=aks -t $IMAGE_NAME_FE .'
             }
         }
         
@@ -27,25 +41,33 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $IMAGE_NAME
+                        docker push $IMAGE_NAME_API
+                        docker push $IMAGE_NAME_FE
                     '''
                 }
             }
         }
 
-        // stage('SSH to Deploy Server and Run App') {
-        //     steps {
-        //         withCredentials([usernamePassword(credentialsId: 'app-server-login', usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-        //             sh '''
-        //                 sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $SSH_USER@$SERVER_IP "
-        //                     docker pull $IMAGE_NAME &&
-        //                     docker stop mysimpleapi || true &&
-        //                     docker rm mysimpleapi || true &&
-        //                     docker run -d -p 5000:80 --name mysimpleapi $IMAGE_NAME
-        //                 "
-        //             '''
-        //         }
-        //     }
-        // }
+        stage('Prepare K8s Manifest') {
+            steps {
+                script {
+                    dir('Case 1.1.2.5. Azure Kubernetes Service (AKS)/jenkins') {
+                        sh '''
+                        sed -e 's|\\${{BASE_IMAGE_NAME_API}}|'${IMAGE_NAME_API}'|g' \
+                            -e 's|\\${{BASE_IMAGE_NAME_FE}}|'${IMAGE_NAME_FE}'|g' \
+                            template.yaml > deployment.yaml
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                dir('Case 1.1.2.5. Azure Kubernetes Service (AKS)/jenkins') {
+                    sh 'kubectl apply -f deployment.yaml'
+                }
+            }
+        }
     }
 }
