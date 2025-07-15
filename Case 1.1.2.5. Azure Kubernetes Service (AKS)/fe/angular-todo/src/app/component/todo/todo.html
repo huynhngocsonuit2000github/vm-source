@@ -27,7 +27,7 @@
 
     <!-- Right Panel -->
     <div class="todo-list-card">
-        <h2>📋 Todo List</h2>
+        <h2>📋 Tasks List</h2>
         <ul>
             <li *ngFor="let todo of todos" [class.completed]="todo.isCompleted" (click)="editTodo(todo)">
                 <div class="info">
